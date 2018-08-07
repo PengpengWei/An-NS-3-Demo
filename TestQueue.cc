@@ -18,7 +18,8 @@ using namespace ns3;
 #define TRAFFIC_INTENSITY 5
 #define ARR_INT 2.0
 #define PORT 10000
-#define MAX_SIM_TIME 1000
+#define MAX_SIM_TIME 3
+#define FILE_SIZE_DEV 100000
 
 NS_LOG_COMPONENT_DEFINE("TestQueue");
 
@@ -45,6 +46,10 @@ Ipv4Address ip(char type, int id, int path = 0, int endpoint = 0)
 }
 
 int main(void) {
+	Time::SetResolution(Time::NS);
+	LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
+	LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
+
 	TrafficControlHelper tch;
 
 	///
@@ -79,7 +84,7 @@ int main(void) {
 	p2p.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
 	NetDeviceContainer es = p2p.Install(nodes.Get(0), routers.Get(0));
-	NetDeviceContainer et = p2p.Install(nodee.Get(1), routers.Get(1));
+	NetDeviceContainer et = p2p.Install(nodes.Get(1), routers.Get(1));
 
 	// Assign ip addresses to LAN: 208.104.70.0/24 (sender), 208.104.72.0/24 (receiver)
 	ipv4.SetBase(Ipv4Address("208.104.70.0"), "255.255.255.0", "0.0.0.1");
@@ -94,14 +99,14 @@ int main(void) {
 	Ipv4StaticRoutingHelper routing;
 
 	// for end systems
-	Ptr<Ipv4StaticRouting> rs = routing.GetStaticRouting(nodes.Get(0)->GetObject<ipv4>());
-	Ptr<Ipv4StaticRouting> rt = routing.GetStaticRouting(nodes.Get(1)->GetObject<ipv4>());
+	Ptr<Ipv4StaticRouting> rs = routing.GetStaticRouting(nodes.Get(0)->GetObject<Ipv4>());
+	Ptr<Ipv4StaticRouting> rt = routing.GetStaticRouting(nodes.Get(1)->GetObject<Ipv4>());
 	rs->AddNetworkRouteTo(Ipv4Address::GetAny(), Ipv4Mask::GetZero(), 1);
 	rt->AddNetworkRouteTo(Ipv4Address::GetAny(), Ipv4Mask::GetZero(), 1);
 
 	// for routers
-	Ptr<Ipv4StaticRouting> ra = routing.GetStaticRouting(routers.Get(0)->GetObject<ipv4>());
-	Ptr<Ipv4StaticRouting> rb = routing.GetStaticRouting(routers.Get(1)->GetObject<ipv4>());
+	Ptr<Ipv4StaticRouting> ra = routing.GetStaticRouting(routers.Get(0)->GetObject<Ipv4>());
+	Ptr<Ipv4StaticRouting> rb = routing.GetStaticRouting(routers.Get(1)->GetObject<Ipv4>());
 	ra->AddHostRouteTo(Ipv4Address("208.104.70.1"), es.Get(1)->GetIfIndex());
 	rb->AddHostRouteTo(Ipv4Address("208.104.72.1"), et.Get(1)->GetIfIndex());
 	ra->AddHostRouteTo(Ipv4Address("208.104.72.1"), e.Get(0)->GetIfIndex());
@@ -128,7 +133,7 @@ int main(void) {
 
 	ApplicationContainer onOffApp = onOffHelper.Install(nodes.Get(0));
 	onOffApp.Start(Seconds(1.0));
-	onOffApp.Stop(Seconds(MAX_SIM_TIME - 100));
+	onOffApp.Stop(Seconds(MAX_SIM_TIME - 0.5));
 
 	// Receiver
 	PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), PORT));
@@ -137,6 +142,7 @@ int main(void) {
 	sinkApp.Start(Seconds(0));
 	sinkApp.Stop(Seconds(MAX_SIM_TIME));
 
+	p2p.EnablePcapAll("TestQueue");
 
 	// Simulation start!
 	Simulator::Run();
