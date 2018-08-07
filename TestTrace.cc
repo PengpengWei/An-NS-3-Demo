@@ -23,6 +23,13 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("TestQueue");
 
+int tot[2];
+
+void MacTx(int i, Ptr<const Packet> p) {
+	tot[i]++;
+}
+
+/*
 Ipv4Address ip(char type, int id, int path = 0, int endpoint = 0)
 {
 	int p1, p2, p3;
@@ -44,8 +51,11 @@ Ipv4Address ip(char type, int id, int path = 0, int endpoint = 0)
 	sprintf(ip, "%d.%d.%d.%d", p1, p2, p3, endpoint);
 	return Ipv4Address(ip);
 }
+*/
 
 int main(void) {
+	tot[0] = tot[1] = 0;
+
 	Time::SetResolution(Time::NS);
 	LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
 	LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
@@ -80,6 +90,9 @@ int main(void) {
 	ipv4.Assign(e);
 	tch.Uninstall(e);
 
+	//Trace e
+	e.Get(0)->TraceConnectWithoutContext("MacTx", MakeBoundCallback(&MacTx, 0));
+
 	// Connect sender with its router
 	p2p.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
@@ -94,6 +107,9 @@ int main(void) {
 	ipv4.SetBase(Ipv4Address("208.104.72.0"), "255.255.255.0", "0.0.0.1");
 	ipv4.Assign(et);
 	tch.Uninstall(et);
+
+	// Trace et
+	et.Get(1)->TraceConnectWithoutContext("MacTx", MakeBoundCallback(&MacTx, 1));
 
 	// Static routing setting
 	Ipv4StaticRoutingHelper routing;
@@ -147,6 +163,8 @@ int main(void) {
 	// Simulation start!
 	Simulator::Run();
 	Simulator::Destroy();
+
+	cout << "tot0 = " << tot[0] << ", tot1 = " << tot[1] << endl;
 	
 
 	return 0;
