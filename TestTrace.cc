@@ -15,18 +15,31 @@ using namespace std;
 using namespace ns3;
 
 #define LINK_CAPACITY 1
-#define TRAFFIC_INTENSITY 5
+#define TRAFFIC_INTENSITY 1
 #define ARR_INT 2.0
 #define PORT 10000
-#define MAX_SIM_TIME 3
+#define MAX_SIM_TIME 1.5
 #define FILE_SIZE_DEV 100000
 
 NS_LOG_COMPONENT_DEFINE("TestQueue");
 
 int tot[2];
+int cnt = 0;
+int droptimes = 0;
 
 void MacTx(int i, Ptr<const Packet> p) {
 	tot[i]++;
+}
+
+void MarkEnqueue(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
+	,Ptr<const Packet> p) {
+	cout << "Enqueue!" << endl;
+	cnt++;
+}
+
+void MarkDrop(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
+	, Ptr<const Packet> p) {
+	droptimes++;
 }
 
 /*
@@ -82,7 +95,7 @@ int main(void) {
 	// Connect routers
 	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10))));
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
-	p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(1));
+	p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
 	NetDeviceContainer e = p2p.Install(routers.Get(0), routers.Get(1));
 
 	// Routers' ip: 208.104.71.0/24 (WAN)
@@ -128,6 +141,21 @@ int main(void) {
 	ra->AddHostRouteTo(Ipv4Address("208.104.72.1"), e.Get(0)->GetIfIndex());
 	rb->AddHostRouteTo(Ipv4Address("208.104.70.1"), e.Get(1)->GetIfIndex());
 
+	// Trace Queue
+	ostringstream oss;
+	oss << "/NodeList/"
+		<< nodes.Get(0)->GetId()
+		<< "/DeviceList/"
+		<< "*/$ns3::PointToPointNetDevice/TxQueue/Enqueue";
+	Config::Connect(oss.str(), MakeCallback(&MarkEnqueue));
+
+	ostringstream oss2;
+	oss2 << "/NodeList/"
+		<< routers.Get(1)->GetId()
+		<< "/DeviceList/"
+		<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
+	Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+
 	///
 	/// Build traffic
 	///
@@ -149,7 +177,7 @@ int main(void) {
 
 	ApplicationContainer onOffApp = onOffHelper.Install(nodes.Get(0));
 	onOffApp.Start(Seconds(1.0));
-	onOffApp.Stop(Seconds(MAX_SIM_TIME - 0.5));
+	onOffApp.Stop(Seconds(MAX_SIM_TIME - 0.1));
 
 	// Receiver
 	PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), PORT));
@@ -165,6 +193,16 @@ int main(void) {
 	Simulator::Destroy();
 
 	cout << "tot0 = " << tot[0] << ", tot1 = " << tot[1] << endl;
+	cout << "cnt = " << cnt << endl;
+	cout << "Drop times = " << droptimes << endl;
+	cout << routers.Get(0)->GetId() << endl << routers.Get(1)->GetId() << endl;
+
+	ostringstream testo;
+	testo << "Hello";
+	cout << testo.str() << endl;
+	testo.str("");
+	testo << " World";
+	cout << testo.str() << endl;
 	
 
 	return 0;
