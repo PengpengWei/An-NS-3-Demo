@@ -21,12 +21,13 @@ using namespace ns3;
 
 // Tunable parameters:
 /////////////////////////////////
-#define LINK_CAPACITY 0.1       // MB/s
+#define LINK_CAPACITY 0.13      // MB/s
 #define TRAFFIC_INTENSITY 0.1   // MB/s
-#define TRAFFIC_VAR 0.03        // MB/s
-#define MAX_SIM_TIME 1.5        // Seconds
-#define NOISE_RESOLUTION 0.01   // Seconds
+#define TRAFFIC_VAR 0.02        // MB/s
+#define MAX_SIM_TIME 3.0        // Seconds
+#define NOISE_RESOLUTION 0.012  // Seconds
 #define BUFFER_SIZE 600         // Bytes
+#define MAX_PKT_SIZE 100        // Bytes
 /////////////////////////////////
 
 
@@ -149,10 +150,11 @@ int main(void) {
 		OnOffHelper onOffHelper("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address("208.104.72.1"), PORT));
 		onOffHelper.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
 		onOffHelper.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+		onOffHelper.SetAttribute("PacketSize", UintegerValue(MAX_PKT_SIZE));
 		int rateToSet = round(temp * 8);
 		if (rateToSet < 1) rateToSet = 1;
 		onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate(rateToSet)));
-		cout << "Rate to set " << rateToSet << endl;
+		// cout << "Rate to set " << rateToSet << endl;
 
 		ApplicationContainer onOffApp = onOffHelper.Install(senderNodes.Get(i));
 		onOffApp.Start(Seconds(i * NOISE_RESOLUTION));
@@ -169,7 +171,7 @@ int main(void) {
 	p2p.EnablePcap("P2PSim-Receiver", rr_dev.Get(0), true);
 	p2p.EnablePcap("P2PSim-Router2", rr_dev.Get(1), true);
 	p2p.EnablePcap("P2PSim-Router1", routerDevs.Get(0), true);
-	// csma.EnablePcap("P2PSim-Sender", sr_dev, true);
+	csma.EnablePcap("Csma-Sender", sr_dev.Get(0), true);
 
 	// Simulation start!
 	Simulator::Run();
