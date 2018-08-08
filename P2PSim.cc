@@ -25,6 +25,7 @@ using namespace ns3;
 #define TRAFFIC_VAR 0.1
 #define MAX_SIM_TIME 1.5
 #define NOISE_RESOLUTION 0.74
+#define BUFFER_SIZE 600
  
 
 NS_LOG_COMPONENT_DEFINE("P2PSim");
@@ -57,10 +58,6 @@ int main(void) {
 	// Connect routers
 	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10)))); //bps
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
-	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
-	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
-	//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
-	//p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(550));
 	NetDeviceContainer routerDevs = p2p.Install(routerNodes.Get(0), routerNodes.Get(1));
 
 	// Routers' ip: 208.104.71.0/24 (WAN)
@@ -76,6 +73,10 @@ int main(void) {
 	srNodes.Add(routerNodes.Get(0));
 	NetDeviceContainer sr_dev = csma.Install(srNodes);
 
+	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
+	//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+	p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
 	NetDeviceContainer rr_dev = p2p.Install(receiverNode.Get(0), routerNodes.Get(1));
 
 	// Assign ip addresses to LAN: 208.104.70.0/24 (sender)
