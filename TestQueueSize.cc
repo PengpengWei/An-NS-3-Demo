@@ -10,6 +10,7 @@
 #include "ns3/internet-apps-module.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/traffic-control-module.h"
+#include "ns3/queue.h"
 
 using namespace std;
 using namespace ns3;
@@ -24,6 +25,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("TestQueue");
 
 int tot[2];
+int queueSize = 0;
 int cnt = 0;
 int droptimes = 0;
 
@@ -33,13 +35,24 @@ void MacTx(int i, Ptr<const Packet> p) {
 
 void MarkEnqueue(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
 	,Ptr<const Packet> p) {
-	cout << "Enqueue!" << endl;
+	//cout << "Enqueue!" << endl;
+	queueSize++;
+	cout << "En: " << queueSize << endl;
 	cnt++;
+}
+
+void MarkDequeue(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
+	, Ptr<const Packet> p) {
+	//cout << "Enqueue!" << endl;
+	queueSize--;
+	cout << "De: " << queueSize << endl;
+	//cnt++;
 }
 
 void MarkDrop(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
 	, Ptr<const Packet> p) {
 	droptimes++;
+	cout << "Dr" << endl;
 }
 
 /*
@@ -70,8 +83,8 @@ int main(void) {
 	tot[0] = tot[1] = 0;
 
 	Time::SetResolution(Time::NS);
-	LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
-	LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
+	//LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
+	//LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
 
 	TrafficControlHelper tch;
 
@@ -93,9 +106,12 @@ int main(void) {
 	Ipv4AddressHelper ipv4;
 	
 	// Connect routers
-	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10))));
+	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10)))); //bps
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
+	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
 	p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+	p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(550));
 	NetDeviceContainer e = p2p.Install(routers.Get(0), routers.Get(1));
 
 	// Routers' ip: 208.104.71.0/24 (WAN)
@@ -149,12 +165,19 @@ int main(void) {
 		<< "*/$ns3::PointToPointNetDevice/TxQueue/Enqueue";
 	Config::Connect(oss.str(), MakeCallback(&MarkEnqueue));
 
-	ostringstream oss2;
-	oss2 << "/NodeList/"
+	oss.str("");
+	oss << "/NodeList/"
 		<< routers.Get(0)->GetId()
 		<< "/DeviceList/"
 		<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
-	Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	Config::Connect(oss.str(), MakeCallback(&MarkDrop));
+
+	oss.str("");
+	oss << "/NodeList/"
+		<< routers.Get(0)->GetId()
+		<< "/DeviceList/"
+		<< "*/$ns3::PointToPointNetDevice/TxQueue/Dequeue";
+	Config::Connect(oss.str(), MakeCallback(&MarkDequeue));
 
 	///
 	/// Build traffic

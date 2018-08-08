@@ -10,6 +10,8 @@
 #include "ns3/internet-apps-module.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/traffic-control-module.h"
+#include "ns3/queue.h"
+#include "ns3/udp-client.h"
 
 using namespace std;
 using namespace ns3;
@@ -18,12 +20,17 @@ using namespace ns3;
 #define TRAFFIC_INTENSITY 1
 #define ARR_INT 2.0
 #define PORT 10000
-#define MAX_SIM_TIME 1.5
 #define FILE_SIZE_DEV 100000
+
+// Tunable parameters:
+#define MAX_PACKET_SIZE 1024
+#define INTER_PACKET_INTERVAL Seconds(1.0)
+#define MAX_SIM_TIME 5
 
 NS_LOG_COMPONENT_DEFINE("TestQueue");
 
 int tot[2];
+int queueSize = 0;
 int cnt = 0;
 int droptimes = 0;
 
@@ -33,13 +40,24 @@ void MacTx(int i, Ptr<const Packet> p) {
 
 void MarkEnqueue(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
 	,Ptr<const Packet> p) {
-	cout << "Enqueue!" << endl;
+	//cout << "Enqueue!" << endl;
+	queueSize++;
+	cout << "En: " << queueSize << endl;
 	cnt++;
+}
+
+void MarkDequeue(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
+	, Ptr<const Packet> p) {
+	//cout << "Enqueue!" << endl;
+	queueSize--;
+	cout << "De: " << queueSize << endl;
+	//cnt++;
 }
 
 void MarkDrop(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
 	, Ptr<const Packet> p) {
 	droptimes++;
+	cout << "Dr" << endl;
 }
 
 /*
@@ -70,8 +88,8 @@ int main(void) {
 	tot[0] = tot[1] = 0;
 
 	Time::SetResolution(Time::NS);
-	LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
-	LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
+	//LogComponentEnable("OnOffApplication", LOG_LEVEL_INFO);
+	//LogComponentEnable("PacketSink", LOG_LEVEL_INFO);
 
 	TrafficControlHelper tch;
 
@@ -93,9 +111,12 @@ int main(void) {
 	Ipv4AddressHelper ipv4;
 	
 	// Connect routers
-	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10))));
+	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10)))); //bps
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
+	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
 	p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+	p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(4096));
 	NetDeviceContainer e = p2p.Install(routers.Get(0), routers.Get(1));
 
 	// Routers' ip: 208.104.71.0/24 (WAN)
@@ -149,12 +170,19 @@ int main(void) {
 		<< "*/$ns3::PointToPointNetDevice/TxQueue/Enqueue";
 	Config::Connect(oss.str(), MakeCallback(&MarkEnqueue));
 
-	ostringstream oss2;
-	oss2 << "/NodeList/"
+	oss.str("");
+	oss << "/NodeList/"
 		<< routers.Get(0)->GetId()
 		<< "/DeviceList/"
 		<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
-	Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	Config::Connect(oss.str(), MakeCallback(&MarkDrop));
+
+	oss.str("");
+	oss << "/NodeList/"
+		<< routers.Get(0)->GetId()
+		<< "/DeviceList/"
+		<< "*/$ns3::PointToPointNetDevice/TxQueue/Dequeue";
+	Config::Connect(oss.str(), MakeCallback(&MarkDequeue));
 
 	///
 	/// Build traffic
@@ -162,22 +190,31 @@ int main(void) {
 
 	// Random variables
 	default_random_engine generator;
-	exponential_distribution<> arrival(1 / ARR_INT);
+	//exponential_distribution<> arrival(1 / ARR_INT);
 	double mean = TRAFFIC_INTENSITY * 1024 * 1024 / 10;
 	normal_distribution<> filesize(mean, FILE_SIZE_DEV / 10);
 
 	// Sender
-	double temp = max(filesize(generator), 1.0);
-	OnOffHelper onOffHelper("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address("208.104.72.1"), PORT));
-	onOffHelper.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-	onOffHelper.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-	int rateToSet = round(temp * 8);
-	if (rateToSet < 1) rateToSet = 1;
-	onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate(rateToSet)));
+	//double temp = max(filesize(generator), 1.0);
+	//OnOffHelper onOffHelper("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address("208.104.72.1"), PORT));
+	//onOffHelper.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+	//onOffHelper.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+	//int rateToSet = round(temp * 8);
+	//if (rateToSet < 1) rateToSet = 1;
+	//onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate(rateToSet)));
 
-	ApplicationContainer onOffApp = onOffHelper.Install(nodes.Get(0));
-	onOffApp.Start(Seconds(1.0));
-	onOffApp.Stop(Seconds(MAX_SIM_TIME - 0.1));
+	//ApplicationContainer onOffApp = onOffHelper.Install(nodes.Get(0));
+	//onOffApp.Start(Seconds(1.0));
+	//onOffApp.Stop(Seconds(MAX_SIM_TIME - 0.1));
+
+	UdpClientHelper udpClientHelper(Ipv4Address("208.104.72.1"), PORT);
+	udpClientHelper.SetAttribute("PacketSize", UintegerValue(MAX_PACKET_SIZE));
+	udpClientHelper.SetAttribute("Interval", TimeValue(INTER_PACKET_INTERVAL));
+
+	ApplicationContainer udpClient = udpClientHelper.Install(nodes.Get(0));
+	udpClient.Start(Seconds(1.0));
+	udpClient.Stop(Seconds(MAX_SIM_TIME - 0.1));
+
 
 	// Receiver
 	PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), PORT));
@@ -195,14 +232,14 @@ int main(void) {
 	cout << "tot0 = " << tot[0] << ", tot1 = " << tot[1] << endl;
 	cout << "cnt = " << cnt << endl;
 	cout << "Drop times = " << droptimes << endl;
-	cout << routers.Get(0)->GetId() << endl << routers.Get(1)->GetId() << endl;
+	//cout << routers.Get(0)->GetId() << endl << routers.Get(1)->GetId() << endl;
 
-	ostringstream testo;
-	testo << "Hello";
-	cout << testo.str() << endl;
-	testo.str("");
-	testo << " World";
-	cout << testo.str() << endl;
+	//ostringstream testo;
+	//testo << "Hello";
+	//cout << testo.str() << endl;
+	//testo.str("");
+	//testo << " World";
+	//cout << testo.str() << endl;
 	
 
 	return 0;
