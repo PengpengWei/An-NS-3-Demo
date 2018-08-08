@@ -20,12 +20,16 @@ using namespace ns3;
 #define PORT 10000
 
 // Tunable parameters:
-#define LINK_CAPACITY 1
-#define TRAFFIC_INTENSITY 1
-#define TRAFFIC_VAR 0.1
-#define MAX_SIM_TIME 1.5
-#define NOISE_RESOLUTION 0.74
-#define BUFFER_SIZE 600
+/////////////////////////////////
+#define LINK_CAPACITY 0.1       // MB/s
+#define TRAFFIC_INTENSITY 0.1   // MB/s
+#define TRAFFIC_VAR 0.03        // MB/s
+#define MAX_SIM_TIME 1.5        // Seconds
+#define NOISE_RESOLUTION 0.01   // Seconds
+#define BUFFER_SIZE 600         // Bytes
+/////////////////////////////////
+
+
  
 
 NS_LOG_COMPONENT_DEFINE("P2PSim");
@@ -56,7 +60,10 @@ int main(void) {
 	Ipv4AddressHelper ipv4;
 
 	// Connect routers
-	p2p.SetDeviceAttribute("DataRate", DataRateValue(DataRate(round(LINK_CAPACITY * 1024 * 1024 * 8 / 10)))); //bps
+	ostringstream oss;
+	oss.str("");
+	oss << LINK_CAPACITY << "MB/s";
+	p2p.SetDeviceAttribute("DataRate", StringValue(oss.str())); 
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
 	NetDeviceContainer routerDevs = p2p.Install(routerNodes.Get(0), routerNodes.Get(1));
 
@@ -133,8 +140,8 @@ int main(void) {
 
 	// Random variables
 	default_random_engine generator;
-	double mean = TRAFFIC_INTENSITY * 1024 * 1024 / 10;
-	normal_distribution<> trRate(mean, TRAFFIC_VAR * 1024 * 1024 / 10);
+	double mean = TRAFFIC_INTENSITY * 1024 * 1024;
+	normal_distribution<> trRate(mean, TRAFFIC_VAR * 1024 * 1024);
 
 	// Sender
 	for (int i = 0; i < num_of_sender; i++) {
@@ -145,6 +152,7 @@ int main(void) {
 		int rateToSet = round(temp * 8);
 		if (rateToSet < 1) rateToSet = 1;
 		onOffHelper.SetAttribute("DataRate", DataRateValue(DataRate(rateToSet)));
+		cout << "Rate to set " << rateToSet << endl;
 
 		ApplicationContainer onOffApp = onOffHelper.Install(senderNodes.Get(i));
 		onOffApp.Start(Seconds(i * NOISE_RESOLUTION));
@@ -161,7 +169,7 @@ int main(void) {
 	p2p.EnablePcap("P2PSim-Receiver", rr_dev.Get(0), true);
 	p2p.EnablePcap("P2PSim-Router2", rr_dev.Get(1), true);
 	p2p.EnablePcap("P2PSim-Router1", routerDevs.Get(0), true);
-	csma.EnablePcap("P2PSim-Sender", sr_dev, true);
+	// csma.EnablePcap("P2PSim-Sender", sr_dev, true);
 
 	// Simulation start!
 	Simulator::Run();
