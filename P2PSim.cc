@@ -21,13 +21,13 @@ using namespace ns3;
 
 // Tunable parameters:
 /////////////////////////////////
-#define LINK_CAPACITY 0.15      // MB/s
+#define LINK_CAPACITY 0.14      // MB/s
 #define TRAFFIC_INTENSITY 0.12  // MB/s
 #define TRAFFIC_DEV 0.03        // MB/s
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
 #define BUFFER_ON 1             // 1 - On, 0 - Off (Using default settings)
-#define BUFFER_SIZE 50000       // Bytes
+#define BUFFER_SIZE 5000        // Bytes
 #define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
@@ -65,6 +65,14 @@ int main(void) {
 	PointToPointHelper p2p;
 	Ipv4AddressHelper ipv4;
 
+	// Buffer setting for senders
+	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+	if (BUFFER_ON) {
+		//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
+		//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+		p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
+	}
+
 	// Connect routers
 	ostringstream oss;
 	oss.str("");
@@ -73,35 +81,51 @@ int main(void) {
 	p2p.SetChannelAttribute("Delay", StringValue("0ms"));
 	NetDeviceContainer routerDevs = p2p.Install(routerNodes.Get(0), routerNodes.Get(1));
 
+	// Trace field
+	{
+		ostringstream oss2;
+		oss2 << "/NodeList/"
+			<< routerNodes.Get(0)->GetId()
+			<< "/DeviceList/"
+			<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
+		Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	}
+
 	// Routers' ip: 208.104.71.0/24 (WAN)
 	ipv4.SetBase(Ipv4Address("208.104.71.0"), "255.255.255.0", "0.0.0.1");
 	ipv4.Assign(routerDevs);
 	tch.Uninstall(routerDevs);
 
-	// Connect sender & receiver with its router
 	CsmaHelper csma;
+
+	//csma.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+	//if (BUFFER_ON) {
+	//	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
+	//	//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+	//	csma.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
+	//}
+
+	//// Trace field
+	//{
+	//	ostringstream oss2;
+	//	oss2 << "/NodeList/*"
+	//		//	<< routerNodes.Get(0)->GetId()
+	//		<< "/DeviceList/"
+	//		<< "*/$ns3::CsmaNetDevice/TxQueue/Drop";
+	//	Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	//}
+
+	// Not to set buffer limitation on receiver's side.
+	if (BUFFER_ON) {
+		p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE * 10));
+	}
+
+	// Connect sender & receiver with its router
 	csma.SetChannelAttribute("DataRate", StringValue("100Gbps"));
 	csma.SetChannelAttribute("Delay", StringValue("0ms"));
 	NodeContainer srNodes = senderNodes;
 	srNodes.Add(routerNodes.Get(0));
 	NetDeviceContainer sr_dev = csma.Install(srNodes);
-
-	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
-	if (BUFFER_ON) {
-		//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
-		//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
-		p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
-	}
-
-	// Trace field
-	{
-		ostringstream oss2;
-		oss2 << "/NodeList/*"
-			//	<< routerNodes.Get(0)->GetId()
-			<< "/DeviceList/"
-			<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
-		Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
-	}
 
 	NetDeviceContainer rr_dev = p2p.Install(receiverNode.Get(0), routerNodes.Get(1));
 
