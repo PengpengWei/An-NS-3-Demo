@@ -21,13 +21,14 @@ using namespace ns3;
 
 // Tunable parameters:
 /////////////////////////////////
-#define LINK_CAPACITY 0.13      // MB/s
-#define TRAFFIC_INTENSITY 0.1   // MB/s
-#define TRAFFIC_VAR 0.02        // MB/s
+#define LINK_CAPACITY 0.05      // MB/s
+#define TRAFFIC_INTENSITY 0.12  // MB/s
+#define TRAFFIC_VAR 0.03        // MB/s
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
-#define BUFFER_SIZE 600         // Bytes
-#define MAX_PKT_SIZE 100        // Bytes
+#define BUFFER_ON 0             // 1 - On, 0 - Off
+#define BUFFER_SIZE 1500        // Bytes
+#define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
 
@@ -81,10 +82,12 @@ int main(void) {
 	srNodes.Add(routerNodes.Get(0));
 	NetDeviceContainer sr_dev = csma.Install(srNodes);
 
-	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
-	//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
-	//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
-	p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
+	if (BUFFER_ON) {
+		p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
+		//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
+		//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
+		p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
+	}
 	NetDeviceContainer rr_dev = p2p.Install(receiverNode.Get(0), routerNodes.Get(1));
 
 	// Assign ip addresses to LAN: 208.104.70.0/24 (sender)
@@ -166,7 +169,7 @@ int main(void) {
 
 	ApplicationContainer sinkApp = sink.Install(receiverNode.Get(0));
 	sinkApp.Start(Seconds(0));
-	sinkApp.Stop(Seconds(MAX_SIM_TIME + NOISE_RESOLUTION * 1.5));
+	sinkApp.Stop(Seconds(MAX_SIM_TIME * 1.5));
 
 	p2p.EnablePcap("P2PSim-Receiver", rr_dev.Get(0), true);
 	p2p.EnablePcap("P2PSim-Router2", rr_dev.Get(1), true);
