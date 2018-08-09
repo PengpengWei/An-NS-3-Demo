@@ -21,18 +21,22 @@ using namespace ns3;
 
 // Tunable parameters:
 /////////////////////////////////
-#define LINK_CAPACITY 0.05      // MB/s
+#define LINK_CAPACITY 0.15      // MB/s
 #define TRAFFIC_INTENSITY 0.12  // MB/s
-#define TRAFFIC_VAR 0.03        // MB/s
+#define TRAFFIC_DEV 0.03        // MB/s
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
-#define BUFFER_ON 0             // 1 - On, 0 - Off
-#define BUFFER_SIZE 1500        // Bytes
+#define BUFFER_ON 1             // 1 - On, 0 - Off (Using default settings)
+#define BUFFER_SIZE 50000       // Bytes
 #define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
-
- 
+// Trace
+int droptimes = 0;
+void MarkDrop(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > arg
+	, Ptr<const Packet> p) {
+	droptimes++;
+}
 
 NS_LOG_COMPONENT_DEFINE("P2PSim");
 
@@ -82,12 +86,23 @@ int main(void) {
 	srNodes.Add(routerNodes.Get(0));
 	NetDeviceContainer sr_dev = csma.Install(srNodes);
 
+	p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
 	if (BUFFER_ON) {
-		p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_BYTES));
 		//p2p.SetQueue("ns3::DropTailQueue", "Mode", EnumValue(Queue::QUEUE_MODE_PACKETS));
 		//p2p.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(2));
 		p2p.SetQueue("ns3::DropTailQueue", "MaxBytes", UintegerValue(BUFFER_SIZE));
 	}
+
+	// Trace field
+	{
+		ostringstream oss2;
+		oss2 << "/NodeList/*"
+			//	<< routerNodes.Get(0)->GetId()
+			<< "/DeviceList/"
+			<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
+		Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	}
+
 	NetDeviceContainer rr_dev = p2p.Install(receiverNode.Get(0), routerNodes.Get(1));
 
 	// Assign ip addresses to LAN: 208.104.70.0/24 (sender)
@@ -145,7 +160,7 @@ int main(void) {
 	// Random variables
 	default_random_engine generator;
 	double mean = TRAFFIC_INTENSITY * 1024 * 1024;
-	normal_distribution<> trRate(mean, TRAFFIC_VAR * 1024 * 1024);
+	normal_distribution<> trRate(mean, TRAFFIC_DEV * 1024 * 1024);
 
 	// Sender
 	for (int i = 0; i < num_of_sender; i++) {
@@ -179,6 +194,8 @@ int main(void) {
 	// Simulation start!
 	Simulator::Run();
 	Simulator::Destroy();
+
+	cout << "Drop: " << droptimes << endl;
 
 	return 0;
 }
