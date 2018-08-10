@@ -27,7 +27,7 @@ using namespace ns3;
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
 #define BUFFER_ON 1             // 1 - On, 0 - Off (Using default settings)
-#define BUFFER_SIZE 400        // Bytes
+#define BUFFER_SIZE 180        // Bytes
 #define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
