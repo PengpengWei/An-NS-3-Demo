@@ -22,12 +22,12 @@ using namespace ns3;
 // Tunable parameters:
 /////////////////////////////////
 #define LINK_CAPACITY 0.14      // MB/s
-#define TRAFFIC_INTENSITY 0.12  // MB/s
-#define TRAFFIC_DEV 0.03        // MB/s
+#define TRAFFIC_INTENSITY 0.09  // MB/s
+#define TRAFFIC_DEV 0.02        // MB/s
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
 #define BUFFER_ON 1             // 1 - On, 0 - Off (Using default settings)
-#define BUFFER_SIZE 5000        // Bytes
+#define BUFFER_SIZE 400        // Bytes
 #define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
@@ -128,6 +128,16 @@ int main(void) {
 	NetDeviceContainer sr_dev = csma.Install(srNodes);
 
 	NetDeviceContainer rr_dev = p2p.Install(receiverNode.Get(0), routerNodes.Get(1));
+
+	// Trace field 2
+	{
+		ostringstream oss2;
+		oss2 << "/NodeList/"
+			<< routerNodes.Get(1)->GetId()
+			<< "/DeviceList/"
+			<< "*/$ns3::PointToPointNetDevice/TxQueue/Drop";
+		Config::Connect(oss2.str(), MakeCallback(&MarkDrop));
+	}
 
 	// Assign ip addresses to LAN: 208.104.70.0/24 (sender)
 	ipv4.SetBase(Ipv4Address("208.104.70.0"), "255.255.255.0", "0.0.0.1");
