@@ -1,4 +1,4 @@
-clear variables
+% clear variables
 CURPATH = pwd;
 cd 'G:\College\Summer\Result of August\Buffer Experiment';
 
