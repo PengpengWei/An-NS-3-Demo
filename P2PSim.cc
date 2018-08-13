@@ -21,13 +21,13 @@ using namespace ns3;
 
 // Tunable parameters:
 /////////////////////////////////
-#define LINK_CAPACITY 0.14      // MB/s
+#define LINK_CAPACITY 0.30      // MB/s
 #define TRAFFIC_INTENSITY 0.09  // MB/s
 #define TRAFFIC_DEV 0.02        // MB/s
 #define MAX_SIM_TIME 3.0        // Seconds
 #define NOISE_RESOLUTION 0.012  // Seconds
 #define BUFFER_ON 1             // 1 - On, 0 - Off (Using default settings)
-#define BUFFER_SIZE 180        // Bytes
+#define BUFFER_SIZE 400         // Bytes
 #define MAX_PKT_SIZE 40         // Bytes
 /////////////////////////////////
 
