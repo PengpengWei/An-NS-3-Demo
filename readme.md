@@ -4,7 +4,7 @@ This project aims to explore impacts on network traffic throughput brought by bu
 
 ## How to run a simulation and get start to analyze data?
 ### Prerequisit
-To run the simulation code, NS-3 environment is needed. <\br>The simulation may takes about 1 hr, largely depending on the performance of your computer.
+To run the simulation code, [NS-3 environment](https://www.nsnam.org/) is needed. The simulation may takes about 1 hr, largely depending on the performance of your computer.
 ### Get raw data from *.cap
 To export the data from the simulation results with a "csv" format, you may use network packet analyzer solfware, such as wireshark, winpcap, etc. 
 ### Extract data from *.csv
