@@ -15,4 +15,4 @@ Once your get the raw data with the right form either by Python or by hand, spee
 Congrates! Now you can execute plotTrend.m to plot figures of transmission rates. The overall trend of throughput rate is reflected on the figures.
 
 ## My results
-See ./report/report.pdf
+See [./report/report.pdf](https://github.com/PengpengWei/An-NS-3-Demo/blob/master/report/report.pdf)
